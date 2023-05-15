@@ -1,0 +1,67 @@
+version: '3.7'
+
+services:
+
+  dind:
+    image: docker:dind
+    user: root
+    privileged: true
+    container_name: dind
+    expose:
+      - 2374
+    networks:
+      - jenkins_dind
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    volumes:
+      - jenkins_data:/var/jenkins_home
+      - jenkins_certs:/certs/client
+
+  jenkins:
+    image: jenkins/jenkins:lts
+    user: root
+    container_name: jenkins
+    depends_on:
+      - dind
+    ports:
+      - 8080:8080
+      - 50000:50000
+    volumes:
+      - jenkins_data:/var/jenkins_home
+      - jenkins_certs:/certs/client
+    environment:
+      DOCKER_HOST: tcp://dind:2374
+      DOCKER_TLS_VERIFY: 0
+    networks:
+      - jenkins_dind
+
+  jenkins-agent1:
+
+    image: jenkins/jnlp-slave
+    container_name: jenkins-agent1
+    environment:
+      - JENKINS_URL=http://jenkins:8080
+      - JENKINS_SECRET=mysecret
+      - JENKINS_AGENT_NAME=agent1
+    networks:
+      - jenkins_dind
+
+  jenkins-agent2:
+    image: jenkins/jnlp-slave
+    container_name: jenkins-agent2
+    environment:
+      - JENKINS_URL=http://jenkins:8080
+      - JENKINS_SECRET=mysecret
+      - JENKINS_AGENT_NAME=agent2
+    networks:
+      - jenkins_dind
+
+networks:
+  jenkins_dind:
+    driver: bridge
+
+volumes:
+  jenkins_data:
+    driver: local
+  jenkins_certs:
+    driver: local
